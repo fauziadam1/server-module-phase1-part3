@@ -77,7 +77,8 @@ class TransactionController extends Controller
         ], 200);
     }
 
-    public function all(Request $request) {
+    public function all(Request $request)
+    {
         $validated = $request->validate([
             'page' => 'nullable|integer',
             'per_page' => 'nullable|integer',
@@ -85,6 +86,48 @@ class TransactionController extends Controller
             'year' => 'nullable|integer'
         ]);
 
-        $t = Transaction::query()->whereRelation('wallet', 'user_id', $request->user()->id)->when(isset($validated['month']), )
+        $transactions = Transaction::query()->whereRelation('wallet', 'user_id', $request->user()->id)->when(isset($validated['month']), function ($query) use ($validated) {
+            $query->whereMonth('date', $validated['month']);
+        })->when(isset($validated['year']), function ($query) use ($validated) {
+            $query->whereYear('date', $validated['year']);
+        })->orderByDesc('date')->paginate($validated['per_page'] ?? 25, ['*'], $validated['page'] ?? 1);
+
+        return response()->json([
+            'currenct_page' => $transactions->currentPage(),
+            'data' => $transactions->map(function ($transactions) {
+                return [
+                    "id" => $transactions->id,
+                    "category_id" => $transactions->category_id,
+                    "wallet_id" => $transactions->wallet_id,
+                    "amount" => $transactions->amount,
+                    "note" => $transactions->note,
+                    "date" => $transactions->date,
+                    "created_at" => $transactions->created_at,
+                    "updated_at" => $transactions->updated_at,
+                    "wallet" => [
+                        "id" => $transactions->wallet->id,
+                        "user_id" => $transactions->wallet->user_id,
+                        "name" => $transactions->wallet->name,
+                        "created_at" => $transactions->wallet->created_at,
+                        "updated_at" => $transactions->wallet->updated_at,
+                        "deleted_at" => $transactions->wallet->deleted_at,
+                        "currency_code" => $transactions->wallet->currency->code
+                    ],
+                    "category" => [
+                        "id" => $transactions->category->id,
+                        "name" => $transactions->category->name,
+                        "icon" => $transactions->category->icon,
+                        "type" => $transactions->category->type,
+                        "created_at" => $transactions->category->created_at,
+                        "updated_at" => $transactions->category->updated_at
+                    ]
+                ];
+            }),
+            'from' => $transactions->firstItem(),
+            'last_page' => $transactions->lastPage(),
+            'per_page' => $transactions->perPage(),
+            'to' => $transactions->lastItem(),
+            'total' => $transactions->total()
+        ], 200);
     }
 }
