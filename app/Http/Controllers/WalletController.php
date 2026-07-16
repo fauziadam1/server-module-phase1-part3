@@ -188,7 +188,7 @@ class WalletController extends Controller
                 "created_at" => $wallet->created_at,
                 "updated_at" => $wallet->updated_at,
                 "deleted_at" => $wallet->deleted_at,
-                "currency_code" => $wallet->currency_code,
+                "currency_code" => $wallet->currency->code,
                 "balance" => $balance
             ]
         ]);
